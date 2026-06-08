@@ -6,9 +6,13 @@
   "author": "Aaron Earles",
   "repo_url": "https://github.com/aaronearles/nextui-memcheat",
   "release_filename": "Memory Editor.pak.zip",
-  "platforms": ["tg5040"],
+  "platforms": [
+    "tg5040"
+  ],
   "changelog": {
     "v0.1.0": "Initial release."
   },
-  "update_ignore": ["watchlist.json"]
+  "update_ignore": [
+    "watchlist.json"
+  ]
 }
