@@ -60,7 +60,7 @@ bin/tg5040/jq: $(PAKMAN_ZIP)
 # ── package ───────────────────────────────────────────────────────────────
 package: daemon tools
 	mkdir -p dist
-	zip -r "dist/Memory Editor.pak.zip" \
+	zip -r "dist/Memory-Editor.pak.zip" \
 	  pak.json settings.json launch.sh www/ \
 	  bin/shared/ \
 	  bin/aarch64/memcheat \

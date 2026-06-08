@@ -71,6 +71,6 @@ jobs:
           tag_name: ${{ steps.version.outputs.value }}
           name: ${{ steps.version.outputs.value }}
           body: ${{ inputs.changelog }}
-          files: dist/Memory Editor.pak.zip
+          files: dist/Memory-Editor.pak.zip
           draft: false
           prerelease: ${{ inputs.prerelease }}
