@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "watch.h"
 #include "scanner.h"
 #include "state.h"
@@ -111,8 +110,7 @@ int watch_load(watch_list_t *wl, const char *path) {
         e.width        = width;
         e.frozen       = frozen;
         e.freeze_value = fval;
-        strncpy(e.label, label, MAX_LABEL_LEN - 1);
-        e.label[MAX_LABEL_LEN - 1] = '\0';
+        snprintf(e.label, MAX_LABEL_LEN, "%s", label);
         wl->entries[wl->count++] = e;
     }
 

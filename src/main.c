@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "state.h"
 #include "api.h"
 #include "scanner.h"

@@ -1,4 +1,3 @@
-#define _GNU_SOURCE
 #include "procutil.h"
 #include <stdio.h>
 #include <stdlib.h>
