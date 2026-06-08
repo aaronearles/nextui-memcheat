@@ -1,0 +1,3 @@
+#!/bin/sh
+pidfile="$USERDATA_PATH/memcheat.pak/memcheat.pid"
+[ -f "$pidfile" ] && kill -0 "$(cat "$pidfile")" 2>/dev/null

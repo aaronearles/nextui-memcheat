@@ -1,0 +1,612 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memory Editor</title>
+<style>
+:root {
+  --bg: #1a1a1a;
+  --surface: #242424;
+  --surface2: #2e2e2e;
+  --border: #3a3a3a;
+  --fg: #d8d8d8;
+  --fg2: #909090;
+  --accent: #e8a020;
+  --accent-dim: #a06f10;
+  --danger: #c04040;
+  --ok: #40a060;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  padding: 0.75rem;
+  max-width: 760px;
+  margin: 0 auto;
+}
+h1 {
+  color: var(--accent);
+  font-size: 1.3rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+#conn-badge {
+  font-size: 0.7rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: var(--surface2);
+  color: var(--fg2);
+}
+#conn-badge.ok { background: var(--ok); color: #fff; }
+#conn-badge.err { background: var(--danger); color: #fff; }
+
+/* ── sections ── */
+details {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-bottom: 0.75rem;
+}
+summary {
+  cursor: pointer;
+  padding: 0.75rem 1rem;
+  font-weight: 600;
+  color: var(--accent);
+  list-style: none;
+  user-select: none;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+summary::-webkit-details-marker { display: none; }
+summary::before {
+  content: "▶";
+  font-size: 0.7em;
+  margin-right: 0.6rem;
+  transition: transform 0.15s;
+}
+details[open] summary::before { transform: rotate(90deg); }
+.section-body { padding: 0.75rem 1rem 1rem; border-top: 1px solid var(--border); }
+
+/* ── form controls ── */
+label { display: block; font-size: 0.8rem; color: var(--fg2); margin-bottom: 3px; }
+input[type=number], input[type=text], select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--fg);
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  font-size: 0.95rem;
+  width: 100%;
+}
+input[type=number]:focus, input[type=text]:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.row { display: flex; gap: 0.5rem; margin-bottom: 0.6rem; flex-wrap: wrap; }
+.row > * { flex: 1; min-width: 80px; }
+.row > .grow { flex: 2; }
+
+/* ── buttons ── */
+button {
+  background: var(--accent);
+  color: #111;
+  border: none;
+  border-radius: 4px;
+  padding: 0.55rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 44px;
+  white-space: nowrap;
+}
+button:active { opacity: 0.8; }
+button.secondary {
+  background: var(--surface2);
+  color: var(--fg);
+  border: 1px solid var(--border);
+}
+button.danger { background: var(--danger); color: #fff; }
+button.small {
+  padding: 0.3rem 0.6rem;
+  min-height: 36px;
+  font-size: 0.8rem;
+}
+
+/* ── status line ── */
+.status-line {
+  padding: 0.5rem 0.7rem;
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--fg2);
+  font-size: 0.85rem;
+  margin-bottom: 0.75rem;
+}
+.status-line.attached { color: var(--ok); }
+
+/* ── tables ── */
+.table-wrap { overflow-x: auto; margin-top: 0.75rem; }
+table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+th {
+  text-align: left;
+  color: var(--fg2);
+  font-weight: 500;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+td {
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+tr:last-child td { border-bottom: none; }
+.addr-cell { font-family: monospace; color: var(--accent-dim); font-size: 0.8rem; }
+.val-cell  { font-family: monospace; }
+.label-cell[contenteditable] { outline: none; }
+.label-cell[contenteditable]:focus {
+  background: var(--surface2);
+  border-radius: 3px;
+  padding: 1px 3px;
+}
+
+/* ── candidate count ── */
+#cand-count {
+  margin-top: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--fg2);
+}
+#cand-count.few { color: var(--ok); }
+
+/* ── freeze row ── */
+.freeze-wrap { display: flex; align-items: center; gap: 0.4rem; }
+.freeze-val-input {
+  width: 70px !important;
+  padding: 0.25rem 0.4rem;
+  font-size: 0.8rem;
+}
+
+/* ── export bar ── */
+.export-bar {
+  margin-top: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+.export-bar > * { flex: 1; min-width: 120px; }
+#export-result {
+  margin-top: 0.5rem;
+  font-size: 0.8rem;
+  color: var(--ok);
+  word-break: break-all;
+}
+.note {
+  font-size: 0.75rem;
+  color: var(--fg2);
+  margin-top: 0.4rem;
+  line-height: 1.4;
+}
+</style>
+</head>
+<body>
+
+<h1>Memory Editor <span id="conn-badge">connecting…</span></h1>
+
+<!-- ── Section 1: Process ─────────────────────────────────────────────── -->
+<details open>
+<summary>Process</summary>
+<div class="section-body">
+  <div id="attach-status" class="status-line">Not attached</div>
+  <div class="row">
+    <select id="proc-select"><option value="">— select process —</option></select>
+    <button class="secondary" onclick="refreshProcs()" style="flex:0">Refresh</button>
+  </div>
+  <div class="row">
+    <button onclick="attachProc()">Attach</button>
+    <button class="secondary" onclick="detachProc()">Detach</button>
+  </div>
+</div>
+</details>
+
+<!-- ── Section 2: Scanner ─────────────────────────────────────────────── -->
+<details>
+<summary>Scanner</summary>
+<div class="section-body">
+  <div class="row">
+    <div class="grow">
+      <label>Value</label>
+      <input type="number" id="scan-value" placeholder="e.g. 100">
+    </div>
+    <div>
+      <label>Width</label>
+      <select id="scan-width">
+        <option value="1">1 byte</option>
+        <option value="2">2 bytes</option>
+        <option value="4" selected>4 bytes</option>
+        <option value="8">8 bytes</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <div>
+      <label>First scan op</label>
+      <select id="scan-op-first">
+        <option value="eq">Equal</option>
+        <option value="lt">Less than</option>
+        <option value="gt">Greater than</option>
+      </select>
+    </div>
+    <div>
+      <label>Refine op</label>
+      <select id="scan-op-refine">
+        <option value="eq">Equal</option>
+        <option value="lt">Less than</option>
+        <option value="gt">Greater than</option>
+        <option value="changed">Changed</option>
+        <option value="unchanged">Unchanged</option>
+        <option value="inc">Increased</option>
+        <option value="dec">Decreased</option>
+      </select>
+    </div>
+  </div>
+  <div class="row">
+    <button onclick="doFirstScan()">First Scan</button>
+    <button class="secondary" onclick="doRefine()">Refine</button>
+    <button class="secondary" onclick="doReset()">Reset</button>
+  </div>
+  <div id="cand-count"></div>
+  <div id="results-wrap" class="table-wrap" style="display:none">
+    <table>
+      <thead><tr><th>Address</th><th>Value</th><th></th></tr></thead>
+      <tbody id="results-body"></tbody>
+    </table>
+    <div id="results-truncated" class="note" style="display:none"></div>
+  </div>
+</div>
+</details>
+
+<!-- ── Section 3: Watch List ─────────────────────────────────────────── -->
+<details>
+<summary>Watch List</summary>
+<div class="section-body">
+  <div class="table-wrap">
+    <table id="watch-table">
+      <thead>
+        <tr>
+          <th>Label</th>
+          <th>Address</th>
+          <th>Value</th>
+          <th>Freeze</th>
+          <th>Write</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody id="watch-body">
+        <tr id="watch-empty"><td colspan="6" style="color:var(--fg2);text-align:center;padding:1rem">Watch list is empty</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="export-bar">
+    <div>
+      <label>Game name</label>
+      <input type="text" id="game-name" placeholder="e.g. Super Mario World">
+    </div>
+    <button onclick="exportCht()" style="flex:0">Export .cht</button>
+  </div>
+  <div id="export-result"></div>
+  <p class="note">Exported addresses are raw process addresses. If cheats do not apply correctly in RetroArch, you may need to subtract the core's base memory offset.</p>
+</div>
+</details>
+
+<script>
+'use strict';
+
+/* ── state ──────────────────────────────────────────────────────────────── */
+let attachedPid  = 0;
+let candidateCount = 0;
+let ws, wsDelay = 1000;
+
+/* ── WebSocket ───────────────────────────────────────────────────────────── */
+function connectWS() {
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  ws = new WebSocket(`${proto}//${location.host}/ws`);
+
+  ws.onopen = () => {
+    wsDelay = 1000;
+    setBadge('Connected', 'ok');
+  };
+
+  ws.onmessage = (e) => {
+    let msg;
+    try { msg = JSON.parse(e.data); } catch { return; }
+    if (msg.type === 'watch_list')   renderWatchList(msg.entries);
+    if (msg.type === 'watch_update') updateWatchValues(msg.entries);
+  };
+
+  ws.onclose = () => {
+    setBadge('Disconnected', 'err');
+    setTimeout(connectWS, wsDelay);
+    wsDelay = Math.min(wsDelay * 2, 30000);
+  };
+
+  ws.onerror = () => ws.close();
+}
+
+function setBadge(text, cls) {
+  const b = document.getElementById('conn-badge');
+  b.textContent = text;
+  b.className = cls || '';
+}
+
+/* ── API helpers ─────────────────────────────────────────────────────────── */
+async function api(method, path, body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body !== undefined) opts.body = JSON.stringify(body);
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+/* ── Process section ─────────────────────────────────────────────────────── */
+async function refreshProcs() {
+  const data = await api('GET', '/api/processes');
+  const sel = document.getElementById('proc-select');
+  sel.innerHTML = '<option value="">— select process —</option>';
+  (data || []).forEach(p => {
+    const o = document.createElement('option');
+    o.value = p.pid;
+    o.textContent = `${p.name}  (PID ${p.pid})`;
+    sel.appendChild(o);
+  });
+}
+
+async function attachProc() {
+  const pid = parseInt(document.getElementById('proc-select').value);
+  if (!pid) return;
+  const r = await api('POST', '/api/attach', { pid });
+  if (r.ok) {
+    attachedPid = pid;
+    const name = document.getElementById('proc-select').selectedOptions[0]?.text || '';
+    document.getElementById('attach-status').textContent =
+      `Attached to ${name.split('(')[0].trim()} (PID ${pid})`;
+    document.getElementById('attach-status').className = 'status-line attached';
+  } else {
+    alert('Attach failed: ' + (r.error || 'unknown error'));
+  }
+}
+
+async function detachProc() {
+  await api('POST', '/api/detach');
+  attachedPid = 0;
+  document.getElementById('attach-status').textContent = 'Not attached';
+  document.getElementById('attach-status').className = 'status-line';
+}
+
+/* ── Scanner section ─────────────────────────────────────────────────────── */
+function scanValue() {
+  return parseFloat(document.getElementById('scan-value').value) || 0;
+}
+
+function setCandCount(n, capped) {
+  const el = document.getElementById('cand-count');
+  if (n === null) { el.textContent = ''; el.className = ''; return; }
+  const capStr = capped ? ' (capped — refine to narrow)' : '';
+  el.textContent = n === 0 ? 'No candidates' :
+    n <= 500 ? `${n} candidates — add to watch list` :
+    `${n} candidates${capStr} — refine to narrow down`;
+  el.className = n > 0 && n <= 500 ? 'few' : '';
+}
+
+async function doFirstScan() {
+  const value = scanValue();
+  const width = parseInt(document.getElementById('scan-width').value);
+  const op    = document.getElementById('scan-op-first').value;
+  const r = await api('POST', '/api/scan/start', { value, width, op });
+  if (!r.ok) { alert('Scan failed: ' + (r.error || '')); return; }
+  candidateCount = r.candidate_count;
+  setCandCount(r.candidate_count, r.capped);
+  if (r.candidate_count <= 500) loadResults();
+  else hideResults();
+}
+
+async function doRefine() {
+  const value = scanValue();
+  const op    = document.getElementById('scan-op-refine').value;
+  const r = await api('POST', '/api/scan/refine', { value, op });
+  if (!r.ok) { alert('Refine failed: ' + (r.error || '')); return; }
+  candidateCount = r.candidate_count;
+  setCandCount(r.candidate_count, false);
+  if (r.candidate_count <= 500) loadResults();
+  else hideResults();
+}
+
+async function doReset() {
+  await api('POST', '/api/scan/reset');
+  setCandCount(null);
+  hideResults();
+}
+
+function hideResults() {
+  document.getElementById('results-wrap').style.display = 'none';
+}
+
+async function loadResults() {
+  const r = await api('GET', '/api/scan/results?offset=0&limit=500');
+  const wrap = document.getElementById('results-wrap');
+  const body = document.getElementById('results-body');
+  const trunc = document.getElementById('results-truncated');
+  body.innerHTML = '';
+
+  (r.results || []).forEach(row => {
+    const tr = document.createElement('tr');
+    tr.innerHTML =
+      `<td class="addr-cell">${row.addr}</td>` +
+      `<td class="val-cell">${row.value}</td>` +
+      `<td><button class="small" onclick="addFromResult(this,'${row.addr}')">Add</button></td>`;
+    body.appendChild(tr);
+  });
+
+  if (r.total > 500) {
+    trunc.textContent = `Showing 500 of ${r.total} — refine further to narrow results.`;
+    trunc.style.display = '';
+  } else {
+    trunc.style.display = 'none';
+  }
+  wrap.style.display = '';
+}
+
+function addFromResult(btn, addr) {
+  const label = prompt(`Label for ${addr}:`, 'Value');
+  if (label === null) return;
+  const width = parseInt(document.getElementById('scan-width').value);
+  api('POST', '/api/watch', { addr, label, width }).then(r => {
+    if (!r.ok) { alert('Add failed: ' + (r.error || '')); return; }
+    btn.closest('tr').style.opacity = '0.4';
+    btn.disabled = true;
+  });
+}
+
+/* ── Watch list ──────────────────────────────────────────────────────────── */
+function renderWatchList(entries) {
+  const body = document.getElementById('watch-body');
+  const empty = document.getElementById('watch-empty');
+  body.innerHTML = '';
+
+  if (!entries || entries.length === 0) {
+    body.appendChild(empty);
+    return;
+  }
+
+  entries.forEach(e => body.appendChild(buildWatchRow(e)));
+}
+
+function buildWatchRow(e) {
+  const tr = document.createElement('tr');
+  tr.dataset.addr = e.addr;
+
+  /* label */
+  const labelTd = document.createElement('td');
+  const labelEl = document.createElement('span');
+  labelEl.className = 'label-cell';
+  labelEl.contentEditable = true;
+  labelEl.textContent = e.label || '';
+  labelEl.addEventListener('blur', () => {
+    api('POST', `/api/watch/${e.addr}/label`, { label: labelEl.textContent.trim() });
+  });
+  labelTd.appendChild(labelEl);
+
+  /* addr */
+  const addrTd = document.createElement('td');
+  addrTd.className = 'addr-cell';
+  addrTd.textContent = e.addr;
+
+  /* value */
+  const valTd = document.createElement('td');
+  valTd.className = 'val-cell';
+  valTd.textContent = e.value ?? '—';
+
+  /* freeze */
+  const freezeTd = document.createElement('td');
+  const freezeWrap = document.createElement('div');
+  freezeWrap.className = 'freeze-wrap';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = !!e.frozen;
+  const fval = document.createElement('input');
+  fval.type = 'number';
+  fval.className = 'freeze-val-input';
+  fval.value = e.freeze_value ?? 0;
+  fval.style.display = e.frozen ? '' : 'none';
+  cb.addEventListener('change', () => {
+    fval.style.display = cb.checked ? '' : 'none';
+    api('POST', `/api/watch/${e.addr}/freeze`,
+        { enabled: cb.checked, value: parseFloat(fval.value) || 0 });
+  });
+  fval.addEventListener('change', () => {
+    if (cb.checked)
+      api('POST', `/api/watch/${e.addr}/freeze`,
+          { enabled: true, value: parseFloat(fval.value) || 0 });
+  });
+  freezeWrap.appendChild(cb);
+  freezeWrap.appendChild(fval);
+  freezeTd.appendChild(freezeWrap);
+
+  /* write */
+  const writeTd = document.createElement('td');
+  const writeBtn = document.createElement('button');
+  writeBtn.className = 'small secondary';
+  writeBtn.textContent = 'Write';
+  writeBtn.onclick = () => {
+    const v = prompt(`Write value to ${e.addr}:`);
+    if (v === null) return;
+    api('POST', `/api/watch/${e.addr}/write`, { value: parseFloat(v) })
+      .then(r => { if (!r.ok) alert('Write failed: ' + (r.error || '')); });
+  };
+  writeTd.appendChild(writeBtn);
+
+  /* remove */
+  const rmTd = document.createElement('td');
+  const rmBtn = document.createElement('button');
+  rmBtn.className = 'small danger';
+  rmBtn.textContent = '✕';
+  rmBtn.onclick = () => {
+    api('DELETE', `/api/watch/${e.addr}`)
+      .then(r => { if (r.ok) tr.remove(); });
+  };
+  rmTd.appendChild(rmBtn);
+
+  tr.append(labelTd, addrTd, valTd, freezeTd, writeTd, rmTd);
+  return tr;
+}
+
+function updateWatchValues(entries) {
+  (entries || []).forEach(e => {
+    const tr = document.querySelector(`#watch-body tr[data-addr="${e.addr}"]`);
+    if (tr) {
+      const valTd = tr.querySelector('.val-cell');
+      if (valTd) valTd.textContent = e.value;
+    }
+  });
+}
+
+/* ── Export ──────────────────────────────────────────────────────────────── */
+async function exportCht() {
+  const name = document.getElementById('game-name').value.trim();
+  if (!name) { alert('Enter a game name first.'); return; }
+  const r = await api('POST', '/api/export/cht', { game_name: name });
+  const el = document.getElementById('export-result');
+  if (r.ok) {
+    el.textContent = 'Exported to: ' + r.path;
+    el.style.color = 'var(--ok)';
+  } else {
+    el.textContent = 'Export failed: ' + (r.error || '');
+    el.style.color = 'var(--danger)';
+  }
+}
+
+/* ── Init ────────────────────────────────────────────────────────────────── */
+connectWS();
+refreshProcs();
+
+/* Sync attach status from daemon on load */
+api('GET', '/api/status').then(r => {
+  if (r && r.attached_pid) {
+    attachedPid = r.attached_pid;
+    document.getElementById('attach-status').textContent =
+      `Attached to ${r.process_name} (PID ${r.attached_pid})`;
+    document.getElementById('attach-status').className = 'status-line attached';
+  }
+  if (r && r.candidate_count > 0) {
+    setCandCount(r.candidate_count, false);
+    if (r.candidate_count <= 500) loadResults();
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>

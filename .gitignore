@@ -1,0 +1,8 @@
+bin/aarch64/memcheat
+bin/tg5040/minui-list
+bin/tg5040/minui-presenter
+bin/tg5040/jq
+src/mongoose.c
+src/mongoose.h
+dist/
+/tmp/Pakman-nextui.zip

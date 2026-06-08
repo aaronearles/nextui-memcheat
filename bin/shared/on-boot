@@ -1,0 +1,4 @@
+#!/bin/sh
+BIN_DIR="$(dirname "$0")"
+PAK_DIR="$(cd "$BIN_DIR/../.." && pwd)"
+"$BIN_DIR/service-on" &

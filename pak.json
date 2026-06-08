@@ -1,0 +1,14 @@
+{
+  "name": "Memory Editor",
+  "version": "v0.1.0",
+  "type": "TOOL",
+  "description": "Live memory scanner. Scan, freeze, and write game memory values. Export RetroArch .cht files via browser on your local network.",
+  "author": "Aaron Earles",
+  "repo_url": "https://github.com/aaronearles/nextui-memcheat",
+  "release_filename": "Memory Editor.pak.zip",
+  "platforms": ["tg5040"],
+  "changelog": {
+    "v0.1.0": "Initial release."
+  },
+  "update_ignore": ["watchlist.json"]
+}

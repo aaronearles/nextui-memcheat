@@ -1,0 +1,11 @@
+#!/bin/sh
+PAK_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
+mkdir -p "$USERDATA_PATH/memcheat.pak"
+"$PAK_DIR/bin/aarch64/memcheat" \
+    --port 8080 \
+    --www "$PAK_DIR/www" \
+    --pidfile "$USERDATA_PATH/memcheat.pak/memcheat.pid" \
+    --logfile "$LOGS_PATH/memcheat.txt" \
+    --watchfile "$USERDATA_PATH/memcheat.pak/watchlist.json" \
+    --cheatdir "$SDCARD_PATH/Cheats" \
+    &

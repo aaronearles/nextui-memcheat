@@ -1,0 +1,76 @@
+name: Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g. v0.1.0)'
+        required: true
+        type: string
+      changelog:
+        description: 'Changelog entry for this release'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-22.04-arm
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set version
+        id: version
+        run: echo "value=$(echo '${{ inputs.version }}' | xargs)" >> $GITHUB_OUTPUT
+
+      - name: Update pak.json
+        run: |
+          jq --arg v "${{ steps.version.outputs.value }}" \
+             --arg c "${{ inputs.changelog }}" \
+             '.version = $v | .changelog[$v] = $c' \
+             pak.json > pak.json.tmp && mv pak.json.tmp pak.json
+
+      - name: Commit pak.json
+        if: ${{ !inputs.prerelease }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet pak.json; then
+            echo "No changes to commit"
+          else
+            git add pak.json
+            git commit -m "Update pak.json to ${{ steps.version.outputs.value }}"
+            git push
+          fi
+
+      - name: Install build dependencies
+        run: sudo apt-get install -y musl-tools unzip curl
+
+      - name: Build daemon and tools
+        run: make daemon tools
+        env:
+          CC: musl-gcc
+
+      - name: Package
+        run: make package
+        env:
+          CC: musl-gcc
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.value }}
+          name: ${{ steps.version.outputs.value }}
+          body: ${{ inputs.changelog }}
+          files: dist/Memory Editor.pak.zip
+          draft: false
+          prerelease: ${{ inputs.prerelease }}
