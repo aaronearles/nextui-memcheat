@@ -1,6 +1,6 @@
 {
   "name": "Memory Editor",
-  "version": "v0.1.2",
+  "version": "v0.1.3",
   "type": "TOOL",
   "description": "Live memory scanner. Scan, freeze, and write game memory values. Export RetroArch .cht files via browser on your local network.",
   "author": "Aaron Earles",
@@ -12,7 +12,8 @@
   "changelog": {
     "v0.1.0": "Initial release.",
     "v0.1.1": "Fix WebSocket connection (was always Disconnected). Add permission error diagnostic for scan.",
-    "v0.1.2": "Fix daemon crash on first scan. Scan now runs in background — UI shows Scanning… then updates when done. WS stays connected throughout."
+    "v0.1.2": "Fix daemon crash on first scan. Scan now runs in background — UI shows Scanning… then updates when done. WS stays connected throughout.",
+    "v0.1.3": "Fix scan UX: Refine becomes primary button after first scan, workflow hint added, before/after count shown on refine. Add Cache-Control: no-store to prevent stale UI."
   },
   "update_ignore": [
     "watchlist.json"
