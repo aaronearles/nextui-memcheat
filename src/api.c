@@ -210,15 +210,18 @@ static void handle_scan_start(struct mg_connection *c, struct mg_http_message *h
         pthread_mutex_unlock(&g_state.lock);
         json_err(c, 400, "not attached"); return;
     }
-    int rc     = scanner_first_scan(&g_state.scanner, (uint64_t)dval, width, op);
-    size_t cnt = g_state.scanner.count;
-    int capped = g_state.scanner.capped;
+    int rc         = scanner_first_scan(&g_state.scanner, (uint64_t)dval, width, op);
+    size_t cnt     = g_state.scanner.count;
+    int capped     = g_state.scanner.capped;
+    int perm_errs  = g_state.scanner.perm_errors;
     pthread_mutex_unlock(&g_state.lock);
 
     if (rc != 0) { json_err(c, 500, "scan failed"); return; }
     mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-        "{\"ok\":true,\"candidate_count\":%zu%s}",
-        cnt, capped ? ",\"capped\":true" : "");
+        "{\"ok\":true,\"candidate_count\":%zu%s%s}",
+        cnt,
+        capped    ? ",\"capped\":true" : "",
+        perm_errs ? ",\"perm_error\":true" : "");
 }
 
 static void handle_scan_refine(struct mg_connection *c, struct mg_http_message *hm) {
@@ -484,6 +487,8 @@ void api_handle(struct mg_connection *c, int ev, void *ev_data) {
         handle_watch_delete(c, extract_addr(uri));
     } else if (uri_eq(uri, "/api/export/cht") && is_method(hm, "POST")) {
         handle_export_cht(c, hm);
+    } else if (uri_eq(uri, "/ws")) {
+        mg_ws_upgrade(c, hm, NULL);
     } else if (starts_with(uri, "/api/")) {
         json_err(c, 404, "not found");
     } else {

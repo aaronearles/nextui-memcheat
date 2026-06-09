@@ -106,6 +106,8 @@ int scanner_first_scan(scanner_t *s, uint64_t value, int width, int op) {
     scanner_reset(s);
     s->width = width;
 
+    s->perm_errors = 0;
+
     char maps_path[64];
     snprintf(maps_path, sizeof(maps_path), "/proc/%d/maps", (int)s->pid);
     FILE *f = fopen(maps_path, "r");
@@ -139,7 +141,11 @@ int scanner_first_scan(scanner_t *s, uint64_t value, int width, int op) {
 
             ssize_t n = vm_readv(s->pid, buf, chunk,
                                  (void *)(uintptr_t)(start + offset), chunk);
-            if (n <= 0) { offset += chunk; continue; }
+            if (n <= 0) {
+                if (errno == EPERM) s->perm_errors++;
+                offset += chunk;
+                continue;
+            }
 
             for (size_t i = 0; (i + (size_t)width) <= (size_t)n; i += (size_t)width) {
                 uint64_t val = read_width(buf + i, width);
@@ -184,6 +190,7 @@ void scanner_reset(scanner_t *s) {
     s->count      = 0;
     s->capacity   = 0;
     s->capped     = 0;
+    s->perm_errors = 0;
     s->state      = SCAN_STATE_IDLE;
 }
 

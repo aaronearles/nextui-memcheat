@@ -409,6 +409,14 @@ async function doFirstScan() {
   const op    = document.getElementById('scan-op-first').value;
   const r = await api('POST', '/api/scan/start', { value, width, op });
   if (!r.ok) { alert('Scan failed: ' + (r.error || '')); return; }
+  if (r.perm_error) {
+    setCandCount(0, false);
+    document.getElementById('cand-count').textContent =
+      'Permission denied — run memcheat as root or check /proc/sys/kernel/yama/ptrace_scope';
+    document.getElementById('cand-count').className = '';
+    hideResults();
+    return;
+  }
   candidateCount = r.candidate_count;
   setCandCount(r.candidate_count, r.capped);
   if (r.candidate_count <= 500) loadResults();

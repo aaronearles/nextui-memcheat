@@ -31,6 +31,7 @@ typedef struct {
     int         width;
     scan_state_t state;
     int         capped;
+    int         perm_errors; /* vm_readv EPERM count from last scan */
 } scanner_t;
 
 void scanner_init(scanner_t *s);
