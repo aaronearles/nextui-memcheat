@@ -545,7 +545,10 @@ void api_handle(struct mg_connection *c, int ev, void *ev_data) {
     } else if (starts_with(uri, "/api/")) {
         json_err(c, 404, "not found");
     } else {
-        struct mg_http_serve_opts opts = {.root_dir = g_state.www_path};
+        struct mg_http_serve_opts opts = {
+            .root_dir      = g_state.www_path,
+            .extra_headers = "Cache-Control: no-store\r\n"
+        };
         mg_http_serve_dir(c, hm, &opts);
     }
 }
