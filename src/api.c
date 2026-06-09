@@ -180,8 +180,8 @@ static void handle_status(struct mg_connection *c) {
 
     mg_http_reply(c, 200, "Content-Type: application/json\r\n",
         "{\"running\":true,\"attached_pid\":%d,\"process_name\":\"%s\","
-        "\"scan_state\":\"%s\",\"candidate_count\":%zu,\"watch_count\":%d}",
-        pid, pname, sstate, ncand, nwatch);
+        "\"scan_state\":\"%s\",\"candidate_count\":%lu,\"watch_count\":%d}",
+        pid, pname, sstate, (unsigned long)ncand, nwatch);
 }
 
 static void handle_processes(struct mg_connection *c) {
@@ -297,7 +297,7 @@ static void handle_scan_refine(struct mg_connection *c, struct mg_http_message *
 
     if (rc != 0) { json_err(c, 400, "no scan in progress"); return; }
     mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-        "{\"ok\":true,\"candidate_count\":%zu}", cnt);
+        "{\"ok\":true,\"candidate_count\":%lu}", (unsigned long)cnt);
 }
 
 static void handle_scan_reset(struct mg_connection *c) {
@@ -367,7 +367,7 @@ static void handle_scan_state(struct mg_connection *c) {
     const char *state_str = running  ? "scanning"    :
                             has_res  ? "has_results" : "idle";
     mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-        "{\"state\":\"%s\",\"count\":%zu}", state_str, cnt);
+        "{\"state\":\"%s\",\"count\":%lu}", state_str, (unsigned long)cnt);
 }
 
 static void handle_watch_get(struct mg_connection *c) {
