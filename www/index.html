@@ -262,6 +262,8 @@ tr:last-child td { border-bottom: none; }
   </div>
   <div id="scan-hint" class="note" style="margin-top:0.5rem;display:none">
     Change the value in-game, then click <strong>Refine</strong>.
+    Small integers (like coins) appear in many memory locations — repeat
+    change + refine 4–6 times to isolate the real address.
   </div>
   <div id="cand-count"></div>
   <div id="results-wrap" class="table-wrap" style="display:none">
@@ -425,7 +427,7 @@ function setCandCount(n, capped, prev) {
   const el = document.getElementById('cand-count');
   if (n === null) { el.textContent = ''; el.className = ''; return; }
   const capStr   = capped ? ' — capped, refine to narrow' : '';
-  const prevStr  = (prev != null && prev !== n) ? ` (was ${prev.toLocaleString()})` : '';
+  const prevStr  = (prev != null && prev !== n) ? ` ↓ from ${prev.toLocaleString()}` : '';
   el.textContent = n === 0 ? 'No candidates' :
     n <= 500 ? `${n} candidates — add to watch list` :
     `${n.toLocaleString()} candidates${capStr}${prevStr} — refine to narrow down`;
@@ -469,7 +471,10 @@ async function doRefine() {
   const value = scanValue();
   const op    = document.getElementById('scan-op-refine').value;
   const prev  = candidateCount;
+  document.getElementById('btn-refine').disabled = true;
+  document.getElementById('cand-count').textContent = 'Refining…';
   const r = await api('POST', '/api/scan/refine', { value, op });
+  document.getElementById('btn-refine').disabled = false;
   if (!r.ok) { alert('Refine failed: ' + (r.error || '')); return; }
   candidateCount = r.candidate_count;
   setScanState(candidateCount > 0 ? 'has_results' : 'idle');
