@@ -14,7 +14,7 @@
     "v0.1.1": "Fix WebSocket connection (was always Disconnected). Add permission error diagnostic for scan.",
     "v0.1.2": "Fix daemon crash on first scan. Scan now runs in background — UI shows Scanning… then updates when done. WS stays connected throughout.",
     "v0.1.3": "Fix scan UX: Refine becomes primary button after first scan, workflow hint added, before/after count shown on refine. Add Cache-Control: no-store to prevent stale UI.",
-    "v0.1.4": "Fix Refine button stuck disabled after WS reconnect: add /api/scan/state endpoint and sync state on WS connect. Fix try/catch in doRefine so button re-enables on error. Show ↓ from N delta on candidate counts ≤500."
+    "v0.1.4": "Fix Refine button stuck disabled after WS reconnect. Add /api/scan/state sync on WS connect, try/catch in doRefine, and delta display for ≤500 candidates."
   },
   "update_ignore": [
     "watchlist.json"
