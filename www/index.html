@@ -256,9 +256,12 @@ tr:last-child td { border-bottom: none; }
     </div>
   </div>
   <div class="row">
-    <button onclick="doFirstScan()">First Scan</button>
-    <button class="secondary" onclick="doRefine()">Refine</button>
-    <button class="secondary" onclick="doReset()">Reset</button>
+    <button id="btn-first" onclick="doFirstScan()">First Scan</button>
+    <button id="btn-refine" class="secondary" onclick="doRefine()">Refine</button>
+    <button id="btn-reset" class="secondary" onclick="doReset()">Reset</button>
+  </div>
+  <div id="scan-hint" class="note" style="margin-top:0.5rem;display:none">
+    Change the value in-game, then click <strong>Refine</strong>.
   </div>
   <div id="cand-count"></div>
   <div id="results-wrap" class="table-wrap" style="display:none">
@@ -309,9 +312,10 @@ tr:last-child td { border-bottom: none; }
 'use strict';
 
 /* ── state ──────────────────────────────────────────────────────────────── */
-let attachedPid  = 0;
+let attachedPid    = 0;
 let candidateCount = 0;
-let ws, wsDelay = 1000;
+let scanState      = 'idle'; /* idle | scanning | has_results */
+let ws, wsDelay    = 1000;
 
 /* ── WebSocket ───────────────────────────────────────────────────────────── */
 function connectWS() {
@@ -394,13 +398,37 @@ function scanValue() {
   return parseFloat(document.getElementById('scan-value').value) || 0;
 }
 
-function setCandCount(n, capped) {
+function setScanState(s) {
+  scanState = s;
+  const btnFirst  = document.getElementById('btn-first');
+  const btnRefine = document.getElementById('btn-refine');
+  const btnReset  = document.getElementById('btn-reset');
+  const hint      = document.getElementById('scan-hint');
+
+  btnFirst.disabled  = (s === 'scanning');
+  btnRefine.disabled = (s === 'scanning') || (s === 'idle');
+  btnReset.disabled  = (s === 'scanning');
+
+  /* swap prominence: Refine is primary once we have results */
+  if (s === 'has_results') {
+    btnFirst.className  = 'secondary';
+    btnRefine.className = '';
+    hint.style.display  = '';
+  } else {
+    btnFirst.className  = '';
+    btnRefine.className = 'secondary';
+    hint.style.display  = 'none';
+  }
+}
+
+function setCandCount(n, capped, prev) {
   const el = document.getElementById('cand-count');
   if (n === null) { el.textContent = ''; el.className = ''; return; }
-  const capStr = capped ? ' (capped — refine to narrow)' : '';
+  const capStr   = capped ? ' — capped, refine to narrow' : '';
+  const prevStr  = (prev != null && prev !== n) ? ` (was ${prev.toLocaleString()})` : '';
   el.textContent = n === 0 ? 'No candidates' :
     n <= 500 ? `${n} candidates — add to watch list` :
-    `${n} candidates${capStr} — refine to narrow down`;
+    `${n.toLocaleString()} candidates${capStr}${prevStr} — refine to narrow down`;
   el.className = n > 0 && n <= 500 ? 'few' : '';
 }
 
@@ -408,8 +436,13 @@ async function doFirstScan() {
   const value = scanValue();
   const width = parseInt(document.getElementById('scan-width').value);
   const op    = document.getElementById('scan-op-first').value;
+  setScanState('scanning');
   const r = await api('POST', '/api/scan/start', { value, width, op });
-  if (!r.ok) { alert('Scan failed: ' + (r.error || '')); return; }
+  if (!r.ok) {
+    setScanState('idle');
+    alert('Scan failed: ' + (r.error || ''));
+    return;
+  }
   const el = document.getElementById('cand-count');
   el.textContent = 'Scanning…';
   el.className = '';
@@ -418,6 +451,7 @@ async function doFirstScan() {
 
 function handleScanDone(msg) {
   if (msg.perm_error) {
+    setScanState('idle');
     const el = document.getElementById('cand-count');
     el.textContent = 'Permission denied — check /proc/sys/kernel/yama/ptrace_scope (must be 0)';
     el.className = '';
@@ -425,6 +459,7 @@ function handleScanDone(msg) {
     return;
   }
   candidateCount = msg.candidate_count || 0;
+  setScanState(candidateCount > 0 ? 'has_results' : 'idle');
   setCandCount(candidateCount, msg.capped);
   if (candidateCount > 0 && candidateCount <= 500) loadResults();
   else hideResults();
@@ -433,16 +468,19 @@ function handleScanDone(msg) {
 async function doRefine() {
   const value = scanValue();
   const op    = document.getElementById('scan-op-refine').value;
+  const prev  = candidateCount;
   const r = await api('POST', '/api/scan/refine', { value, op });
   if (!r.ok) { alert('Refine failed: ' + (r.error || '')); return; }
   candidateCount = r.candidate_count;
-  setCandCount(r.candidate_count, false);
+  setScanState(candidateCount > 0 ? 'has_results' : 'idle');
+  setCandCount(r.candidate_count, false, prev);
   if (r.candidate_count <= 500) loadResults();
   else hideResults();
 }
 
 async function doReset() {
   await api('POST', '/api/scan/reset');
+  setScanState('idle');
   setCandCount(null);
   hideResults();
 }
@@ -606,6 +644,7 @@ async function exportCht() {
 }
 
 /* ── Init ────────────────────────────────────────────────────────────────── */
+setScanState('idle');
 connectWS();
 refreshProcs();
 
@@ -618,6 +657,8 @@ api('GET', '/api/status').then(r => {
     document.getElementById('attach-status').className = 'status-line attached';
   }
   if (r && r.candidate_count > 0) {
+    candidateCount = r.candidate_count;
+    setScanState('has_results');
     setCandCount(r.candidate_count, false);
     if (r.candidate_count <= 500) loadResults();
   }
