@@ -328,6 +328,7 @@ function connectWS() {
     try { msg = JSON.parse(e.data); } catch { return; }
     if (msg.type === 'watch_list')   renderWatchList(msg.entries);
     if (msg.type === 'watch_update') updateWatchValues(msg.entries);
+    if (msg.type === 'scan_done')    handleScanDone(msg);
   };
 
   ws.onclose = () => {
@@ -409,17 +410,23 @@ async function doFirstScan() {
   const op    = document.getElementById('scan-op-first').value;
   const r = await api('POST', '/api/scan/start', { value, width, op });
   if (!r.ok) { alert('Scan failed: ' + (r.error || '')); return; }
-  if (r.perm_error) {
-    setCandCount(0, false);
-    document.getElementById('cand-count').textContent =
-      'Permission denied — run memcheat as root or check /proc/sys/kernel/yama/ptrace_scope';
-    document.getElementById('cand-count').className = '';
+  const el = document.getElementById('cand-count');
+  el.textContent = 'Scanning…';
+  el.className = '';
+  hideResults();
+}
+
+function handleScanDone(msg) {
+  if (msg.perm_error) {
+    const el = document.getElementById('cand-count');
+    el.textContent = 'Permission denied — check /proc/sys/kernel/yama/ptrace_scope (must be 0)';
+    el.className = '';
     hideResults();
     return;
   }
-  candidateCount = r.candidate_count;
-  setCandCount(r.candidate_count, r.capped);
-  if (r.candidate_count <= 500) loadResults();
+  candidateCount = msg.candidate_count || 0;
+  setCandCount(candidateCount, msg.capped);
+  if (candidateCount > 0 && candidateCount <= 500) loadResults();
   else hideResults();
 }
 

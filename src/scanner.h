@@ -11,7 +11,7 @@
 #define SCAN_INC       5
 #define SCAN_DEC       6
 
-#define CANDIDATE_MAX  2000000
+#define CANDIDATE_MAX  200000
 
 typedef enum {
     SCAN_STATE_IDLE,

@@ -16,7 +16,7 @@
 #define __NR_process_vm_writev 271
 #endif
 
-#define CANDIDATE_CHUNK  4096
+#define CANDIDATE_CHUNK  16384
 #define READ_CHUNK_SIZE  (1 * 1024 * 1024)
 
 static ssize_t vm_readv(pid_t pid, void *local, size_t llen,

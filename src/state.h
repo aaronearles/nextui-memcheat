@@ -12,6 +12,8 @@ typedef struct {
     char           pidfile[512];
     int            port;
     pthread_mutex_t lock;
+    int            scan_running; /* 1 while background scan thread is active */
+    int            scan_done;    /* set to 1 by scan thread; cleared by timer after broadcast */
 } app_state_t;
 
 extern app_state_t g_state;

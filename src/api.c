@@ -81,6 +81,21 @@ static void json_err(struct mg_connection *c, int code, const char *msg) {
                   "{\"ok\":false,\"error\":\"%s\"}", msg);
 }
 
+/* ── async scan thread ───────────────────────────────────────────────────── */
+
+typedef struct { uint64_t value; int width; int op; } scan_req_t;
+
+static void *scan_thread_fn(void *arg) {
+    scan_req_t *req = (scan_req_t *)arg;
+    pthread_mutex_lock(&g_state.lock);
+    scanner_first_scan(&g_state.scanner, req->value, req->width, req->op);
+    g_state.scan_running = 0;
+    g_state.scan_done    = 1;
+    pthread_mutex_unlock(&g_state.lock);
+    free(req);
+    return NULL;
+}
+
 /* ── WebSocket helpers ───────────────────────────────────────────────────── */
 
 static void build_watch_list_json(char *buf, size_t bufsz, int full) {
@@ -124,11 +139,30 @@ static void ws_broadcast(struct mg_mgr *mgr, const char *msg, size_t len) {
 
 void api_ws_broadcast_timer(void *arg) {
     struct mg_mgr *mgr = arg;
-    char buf[8192];
-    pthread_mutex_lock(&g_state.lock);
-    build_watch_list_json(buf, sizeof(buf), 0);
+
+    /* trylock: if the scan thread holds the lock, skip this tick */
+    if (pthread_mutex_trylock(&g_state.lock) != 0) return;
+
+    int done    = g_state.scan_done;
+    size_t cnt  = g_state.scanner.count;
+    int capped  = g_state.scanner.capped;
+    int permerr = g_state.scanner.perm_errors;
+    if (done) g_state.scan_done = 0;
+
+    char wbuf[8192];
+    build_watch_list_json(wbuf, sizeof(wbuf), 0);
     pthread_mutex_unlock(&g_state.lock);
-    ws_broadcast(mgr, buf, strlen(buf));
+
+    if (done) {
+        char sbuf[160];
+        snprintf(sbuf, sizeof(sbuf),
+            "{\"type\":\"scan_done\",\"candidate_count\":%zu%s%s}",
+            cnt,
+            capped  ? ",\"capped\":true"     : "",
+            permerr ? ",\"perm_error\":true" : "");
+        ws_broadcast(mgr, sbuf, strlen(sbuf));
+    }
+    ws_broadcast(mgr, wbuf, strlen(wbuf));
 }
 
 /* ── route handlers ──────────────────────────────────────────────────────── */
@@ -210,18 +244,37 @@ static void handle_scan_start(struct mg_connection *c, struct mg_http_message *h
         pthread_mutex_unlock(&g_state.lock);
         json_err(c, 400, "not attached"); return;
     }
-    int rc         = scanner_first_scan(&g_state.scanner, (uint64_t)dval, width, op);
-    size_t cnt     = g_state.scanner.count;
-    int capped     = g_state.scanner.capped;
-    int perm_errs  = g_state.scanner.perm_errors;
+    if (g_state.scan_running) {
+        pthread_mutex_unlock(&g_state.lock);
+        json_err(c, 409, "scan already running"); return;
+    }
+
+    scan_req_t *req = malloc(sizeof(scan_req_t));
+    if (!req) {
+        pthread_mutex_unlock(&g_state.lock);
+        json_err(c, 500, "out of memory"); return;
+    }
+    req->value = (uint64_t)dval;
+    req->width = width;
+    req->op    = op;
+
+    scanner_reset(&g_state.scanner);
+    g_state.scan_running = 1;
+    g_state.scan_done    = 0;
     pthread_mutex_unlock(&g_state.lock);
 
-    if (rc != 0) { json_err(c, 500, "scan failed"); return; }
+    pthread_t t;
+    if (pthread_create(&t, NULL, scan_thread_fn, req) != 0) {
+        free(req);
+        pthread_mutex_lock(&g_state.lock);
+        g_state.scan_running = 0;
+        pthread_mutex_unlock(&g_state.lock);
+        json_err(c, 500, "failed to start scan thread"); return;
+    }
+    pthread_detach(t);
+
     mg_http_reply(c, 200, "Content-Type: application/json\r\n",
-        "{\"ok\":true,\"candidate_count\":%zu%s%s}",
-        cnt,
-        capped    ? ",\"capped\":true" : "",
-        perm_errs ? ",\"perm_error\":true" : "");
+                  "{\"ok\":true,\"scanning\":true}");
 }
 
 static void handle_scan_refine(struct mg_connection *c, struct mg_http_message *hm) {
