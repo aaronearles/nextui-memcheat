@@ -1,6 +1,6 @@
 {
   "name": "Memory Editor",
-  "version": "v0.1.0",
+  "version": "v0.1.1",
   "type": "TOOL",
   "description": "Live memory scanner. Scan, freeze, and write game memory values. Export RetroArch .cht files via browser on your local network.",
   "author": "Aaron Earles",
@@ -10,7 +10,8 @@
     "tg5040"
   ],
   "changelog": {
-    "v0.1.0": "Initial release."
+    "v0.1.0": "Initial release.",
+    "v0.1.1": "Fix WebSocket connection (was always Disconnected). Add permission error diagnostic for scan."
   },
   "update_ignore": [
     "watchlist.json"
