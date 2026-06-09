@@ -357,6 +357,19 @@ static void handle_scan_results(struct mg_connection *c, struct mg_http_message 
     free(buf);
 }
 
+static void handle_scan_state(struct mg_connection *c) {
+    pthread_mutex_lock(&g_state.lock);
+    int running  = g_state.scan_running;
+    int has_res  = (g_state.scanner.state == SCAN_STATE_HAS_RESULTS);
+    size_t cnt   = g_state.scanner.count;
+    pthread_mutex_unlock(&g_state.lock);
+
+    const char *state_str = running  ? "scanning"    :
+                            has_res  ? "has_results" : "idle";
+    mg_http_reply(c, 200, "Content-Type: application/json\r\n",
+        "{\"state\":\"%s\",\"count\":%zu}", state_str, cnt);
+}
+
 static void handle_watch_get(struct mg_connection *c) {
     pthread_mutex_lock(&g_state.lock);
     size_t bufsz = 64 + (size_t)g_state.watchlist.count * 160;
@@ -526,6 +539,8 @@ void api_handle(struct mg_connection *c, int ev, void *ev_data) {
         handle_scan_reset(c);
     } else if (starts_with(uri, "/api/scan/results") && is_method(hm, "GET")) {
         handle_scan_results(c, hm);
+    } else if (uri_eq(uri, "/api/scan/state") && is_method(hm, "GET")) {
+        handle_scan_state(c);
     } else if (uri_eq(uri, "/api/watch") && is_method(hm, "GET")) {
         handle_watch_get(c);
     } else if (uri_eq(uri, "/api/watch") && is_method(hm, "POST")) {
