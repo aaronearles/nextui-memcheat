@@ -558,6 +558,7 @@ function addFromResult(btn, addr) {
     if (!r.ok) { alert('Add failed: ' + (r.error || '')); return; }
     btn.closest('tr').style.opacity = '0.4';
     btn.disabled = true;
+    api('GET', '/api/watch').then(entries => renderWatchList(entries));
   });
 }
 
